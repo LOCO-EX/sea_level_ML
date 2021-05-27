@@ -40,6 +40,9 @@ SL = pd.read_csv('data/raw_data/SL_DH_data.csv')
 time  = list(map(datenum_to_datetime,SL.datenum))
 level = SL.CorrectedSeaLevel
 
+years=[element.year for element in time]
+
+
 
 # %% Perform harmonic analysis
 
@@ -51,21 +54,31 @@ import numpy as np
 #wt = pytide.WaveTable()
 wt = pytide.WaveTable()
 
-f, vu = wt.compute_nodal_modulations(time)
-# You can also use a list of datetime.datetime objects
-# wt.compute_nodal_modulations(list(time))
+hp = list()
 
-w = wt.harmonic_analysis(level, f, vu)
+for year in np.unique(years):
 
-time_ms = [element.timestamp()+3600 for element in time]
+    ind = np.nonzero(np.array(years) == year )[0]
 
+    time_tmp = [time[i] for i in ind]
+    level_tmp = [level[i] for i in ind]
 
-hp = wt.tide_from_tide_series(time_ms, w)+np.mean(level)
+    f, vu = wt.compute_nodal_modulations(time_tmp)
+    # You can also use a list of datetime.datetime objects
+    # wt.compute_nodal_modulations(list(time))
+
+    w = wt.harmonic_analysis(level_tmp, f, vu)
+
+    time_ms = [element.timestamp()+3600 for element in time_tmp]
+
+    hp = hp + list(wt.tide_from_tide_series(time_ms, w)+np.mean(level_tmp))
+    print(np.mean(hp))
+    print(np.mean(level_tmp))
 
 
 
 # %%
-import matplotlib.pyplot as plt
-plt.plot(time[0:800],level[0:800])
-plt.plot(time[0:800],hp[0:800])
-plt.show()
+#import matplotlib.pyplot as plt
+#plt.plot(time[0:800],level[0:800])
+#plt.plot(time[0:800],hp[0:800])
+#plt.show()
