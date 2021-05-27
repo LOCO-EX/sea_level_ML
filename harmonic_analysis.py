@@ -38,7 +38,7 @@ def datenum_to_datetime(datenum):
 SL = pd.read_csv('data/raw_data/SL_DH_data.csv')
 
 time  = list(map(datenum_to_datetime,SL.datenum))
-level = SL.CorrectedSeaLevel
+level = SL.CorrectedSeaLevel-694.6
 
 years=[element.year for element in time]
 
@@ -59,6 +59,7 @@ wt = pytide.WaveTable()
 
 hp = list()
 
+
 for year in np.unique(years):
 
     ind = np.nonzero(np.array(years) == year )[0]
@@ -75,10 +76,10 @@ for year in np.unique(years):
     time_ms = [element.timestamp()+3600 for element in time_tmp]
 
     hp = hp + list(wt.tide_from_tide_series(time_ms, w)+np.mean(level_tmp))
-    print(np.mean(hp))
-    print(np.mean(level_tmp))
 
-d = {'time': time, 'sea_level': level, 'harmonic_rec': hp}
+res = level - hp +  694.6    
+
+d = {'time': time, 'sea_level_0m': level +  694.6 , 'harmonic_rec': hp, 'residual': res}
 df = pd.DataFrame(data=d)
 
 # %%
@@ -96,12 +97,12 @@ window_size = 6*(96+1+96)
 pad = np.zeros(window_size) * np.NaN
 
 wt = lanc(window_size, freq)
-res = np.convolve(wt, df['sea_level']-694.0, mode='same')
+res = np.convolve(wt, df['sea_level']-694.6, mode='same')
 
-df['low'] = res
+df['low'] = res + 694.6
 df['high'] = df['sea_level'] - df['low']
 
-df['pandas_l'] = df['sea_level'].rolling( window=240, center=True).mean()
+df['pandas_l'] = df['sea_level'].rolling(window=240, center=True).mean()
 df['pandas_h'] = df['sea_level'] - df['pandas_l']
 
 # %% This part using iris uses too much memory
