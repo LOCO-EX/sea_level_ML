@@ -14,6 +14,7 @@ Must intall pytide
 conda install pytide -c conda-forge
 
 
+@author: mduranmatute
 """
 
 
