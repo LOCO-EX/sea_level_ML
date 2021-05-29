@@ -2,8 +2,11 @@
 """
 Script to perform the harmonic analysis of the sea level
 
-This script read the sea level (corrected) raw data, performs harmonic analysis
-and saves the tidal reconstruction and the residual in a new file
+This script reads the sea level (corrected) raw data to perform harmonic analysis
+and filtering of the water level.
+
+It saves the tidal reconstruction, the residual and the filtered sea level to 
+a file. 
 
 
 
@@ -38,7 +41,7 @@ def datenum_to_datetime(datenum):
 SL = pd.read_csv('data/raw_data/SL_DH_data.csv')
 
 time  = list(map(datenum_to_datetime,SL.datenum))
-level = SL.CorrectedSeaLevel-694.6
+level = SL.CorrectedSeaLevel[:]-694.6
 
 years=[element.year for element in time]
 
@@ -54,8 +57,12 @@ import pytide
 import numpy as np
 
 
-#wt = pytide.WaveTable()
+
+
 wt = pytide.WaveTable()
+#To test difference with t_tide these are the constituents with snr>10 for 2015
+#wt = pytide.WaveTable(["O1", "P1", "K1", "Mu2", "N2", "Nu2", "M2", "L2", "S2", "K2", "MO3", "MN4", "M4", "MS4", "2MK6", "2MN6", "M6", "2MS6", "M8"])
+
 
 hp = list()
 
@@ -96,14 +103,14 @@ freq = 1./40/6  # Hours
 window_size = 6*(96+1+96)
 pad = np.zeros(window_size) * np.NaN
 
-wt = lanc(window_size, freq)
-res = np.convolve(wt, df['sea_level']-694.6, mode='same')
+win = lanc(window_size, freq)
+res = np.convolve(win, df['sea_level_0m']-694.6, mode='same')
 
 df['low'] = res + 694.6
-df['high'] = df['sea_level'] - df['low']
+df['high'] = df['sea_level_0m'] - df['low']
 
-df['pandas_l'] = df['sea_level'].rolling(window=240, center=True).mean()
-df['pandas_h'] = df['sea_level'] - df['pandas_l']
+df['pandas_l'] = df['sea_level_0m'].rolling(window = 240, center=True, min_periods=1).mean()
+df['pandas_h'] = df['sea_level_0m'] - df['pandas_l']
 
 # %% This part using iris uses too much memory
 
