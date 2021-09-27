@@ -11,7 +11,8 @@ To do a forecast of the tidally-averaged sea level as a function of wind speed a
 
 @author: matias
 """
-# prepare data for lstm
+
+#%% prepare data for lstm
 
 from math import sqrt
 from numpy import concatenate
@@ -54,7 +55,7 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 
 # %%
 # load dataset
-dataset = read_csv('data/tidal_averages.csv', header=0, index_col=0)
+dataset = read_csv('./data/tidal_averages.csv', header=0, index_col=0)
 values = dataset.values
 # integer encode direction
 #encoder = LabelEncoder()
@@ -65,7 +66,11 @@ values = values.astype('float32')
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaled = scaler.fit_transform(values)
 # frame as supervised learning
-reframed = series_to_supervised(scaled, 1, 1)
+# specify the number of lag hours
+n_periods = 1
+n_features = 5 # Is this correct?
+# frame as supervised learning
+reframed = series_to_supervised(scaled, n_periods, 1)
 # drop columns we don't want to predict
 #reframed.drop(reframed.columns[[9,10,11,12,13,14,15]], axis=1, inplace=True)
 print(reframed.head())
@@ -77,12 +82,15 @@ n_train_periods = 5000
 train = values[:n_train_periods, :]
 test = values[n_train_periods:, :]
 # split into input and outputs
-train_X, train_y = train[:, :-1], train[:, -1]
-test_X, test_y = test[:, :-1], test[:, -1]
+n_obs = n_periods * n_features
+train_X, train_y = train[:, :n_obs], train[:, -n_features]
+test_X, test_y = test[:, :n_obs], test[:, -n_features]
+print(train_X.shape, len(train_X), train_y.shape)
 # reshape input to be 3D [samples, timesteps, features]
-train_X = train_X.reshape((train_X.shape[0], 1, train_X.shape[1]))
-test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
+train_X = train_X.reshape((train_X.shape[0], n_periods, n_features))
+test_X = test_X.reshape((test_X.shape[0], n_periods, n_features))
 print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
+
 
 #%%
 # design network
@@ -97,3 +105,5 @@ pyplot.plot(history.history['loss'], label='train')
 pyplot.plot(history.history['val_loss'], label='test')
 pyplot.legend()
 pyplot.show()
+
+# %% Make a prediction
