@@ -3,6 +3,11 @@
 """
 Created on Sat May 29 06:36:13 2021
 
+This script computes the tidal averages of sea level, harmonic reconstruction, sea level residual, wind speed, and wind direction
+
+Details about the averaging being carried out correctly must still be checked (integration boundaries). 
+Later, tidal averaging of fresh water discharge should be added.
+
 @author: mduranmatute
 """
 
@@ -85,14 +90,15 @@ gdr = np.pi/180 # useful to transform from degrees to radians
 
 W['t'] = (W['Datenum'][:]-W['Datenum'][0])*24*60*60 #Define time in seconds
 
-
+# %% Wind averaging
 # Load the wind direction and perform some useful definitions
 a = np.array(W['WindDirection'])  
+a[a == 990] =0;
 
 a_x = np.sin(np.pi/180*a)
 a_y = np.cos(np.pi/180*a)
-a_x[a == 990] = np.nan;
-a_y[a == 990] = np.nan;
+a_x[a == 990] = 0;
+a_y[a == 990] = 0;
 
 #predifine the output variables
 mean_a_x = np.zeros([len(int_p)-1,])
@@ -110,11 +116,11 @@ for i in np.arange(1,len(int_p)-1):
     ind1W = np.where(W['t']>(t_i[int_p[i]]-t_off))[0][0]
     ind2W = np.where(W['t']<(t_i[int_p[i+1]]-t_off))[0][-1]
     
-    NormfWD = ind2W - ind1W + 1; # The number of 
+    NormfWD = ind2W - ind1W + 1 # The number of 
     
     
-    mean_a_x[i] = np.nanmean(a_x[ind1W:ind2W+1]);
-    mean_a_y[i] = np.nanmean(a_y[ind1W:ind2W+1]);
+    mean_a_x[i] = np.nanmean(a_x[ind1W:ind2W+1])
+    mean_a_y[i] = np.nanmean(a_y[ind1W:ind2W+1])
 
     trap_v[i] = np.array([np.trapz(W['WindSpeed_m_s_'][ind1W:ind2W+1])/NormfWD]) #average wind speed
     
@@ -123,11 +129,39 @@ a_mean = -180/np.pi*np.arctan2(mean_a_x,mean_a_y)
 R = np.abs(mean_a_x**2 + mean_a_y**2);
 std_angle = np.sqrt(-np.log(R))*180/np.pi;
 
+# %% Split wind energy into sectors
+a_sec = np.arange(22.5,360,45)
+
+mws = np.zeros([a.size,8])
+
+for i in np.arange(0,7):
+	ind = (a>a_sec[i]) & (a<a_sec[i+1])
+	mws[ind,i+1]=W['WindSpeed_m_s_'][ind]
+	
+ind1 = (a<a_sec[0]) 
+ind2 = (a>a_sec[-1])
+ind = np.logical_or(ind1,ind2)
+mws[ind,0]=W['WindSpeed_m_s_'][ind]
+
+MWS = np.zeros([len(int_p)-1,8])
+
+for i in np.arange(1,len(int_p)-1):
+
+    # Find the indices for the averaging
+	ind1W = np.where(W['t']>(t_i[int_p[i]]-t_off))[0][0]
+	ind2W = np.where(W['t']<(t_i[int_p[i+1]]-t_off))[0][-1]
+	NormfWD = ind2W - ind1W + 1
+
+	MWS[i,:] = np.array([np.trapz(mws[ind1W:ind2W+1,:],axis = 0)/NormfWD]) #average wind speed
+
+
+
 # %% Save data
-d = {'sea_level_0m': level_av, 'wind_speed': trap_v, 'wind_angle': a_mean}
+d = {'sea_level_0m': level_av, 'wind_speed': trap_v, 'sine_wind_angle': mean_a_y, 'cosine_wind_angle': mean_a_x}
 df = pd.DataFrame(data=d)
 
 df.to_csv('data/tidal_averages.csv')
+
 
 
 
