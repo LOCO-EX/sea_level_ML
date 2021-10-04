@@ -135,10 +135,10 @@ a_sec = np.arange(22.5,360,45)
 mws = np.zeros([a.size,8])
 
 for i in np.arange(0,7):
-	ind = (a>a_sec[i]) & (a<a_sec[i+1])
+	ind = (a>=a_sec[i]) & (a<a_sec[i+1])
 	mws[ind,i+1]=W['WindSpeed_m_s_'][ind]
 	
-ind1 = (a<a_sec[0]) 
+ind1 = (a<=a_sec[0]) 
 ind2 = (a>a_sec[-1])
 ind = np.logical_or(ind1,ind2)
 mws[ind,0]=W['WindSpeed_m_s_'][ind]
@@ -152,17 +152,20 @@ for i in np.arange(1,len(int_p)-1):
 	ind2W = np.where(W['t']<(t_i[int_p[i+1]]-t_off))[0][-1]
 	NormfWD = ind2W - ind1W + 1
 
-	MWS[i,:] = np.array([np.trapz(mws[ind1W:ind2W+1,:],axis = 0)/NormfWD]) #average wind speed
+	MWS[i,:] = np.array([np.trapz(mws[ind1W:ind2W+1,:]**3,axis = 0)/NormfWD]) #average wind speed
 
 
 
 # %% Save data
-d = {'sea_level_0m': level_av, 'wind_speed': trap_v, 'sine_wind_angle': mean_a_y, 'cosine_wind_angle': mean_a_x}
+d = {'sea_level_0m': level_av, 'wind_speed': trap_v, 'sine_wind_angle': mean_a_y, 'cosine_wind_angle': mean_a_x, 'std_wind_angle': std_angle}
 df = pd.DataFrame(data=d)
 
 df.to_csv('data/tidal_averages.csv')
 
+d2 = {'sea_level_0m': level_av, 'E1': MWS[:,0], 'E2': MWS[:,1], 'E3': MWS[:,2], 'E4': MWS[:,3], 'E5': MWS[:,4], 'E6': MWS[:,5], 'E7': MWS[:,6], 'E8': MWS[:,7]}
+df2 = pd.DataFrame(data=d2)
 
+df2.to_csv('data/tidal_averages_ES.csv')
 
 
 # %% Plot results
