@@ -18,6 +18,7 @@ To do a forecast of the tidally-averaged sea level as a function of wind speed a
 #%% prepare data for lstm
 
 from math import sqrt
+import numpy as np
 from numpy import concatenate
 from matplotlib import pyplot
 from pandas import read_csv
@@ -64,18 +65,28 @@ dataset = read_csv('./data/tidal_averages_ES.csv', header=0, index_col=0)
 #dataset = read_csv('../data_post_proc/tidal_averages.csv', header=0, index_col=0) #sea level, wind speed, sin(ang), cos(ang)
 #order dataset to put target(sea level) in the last column
 cols = list(dataset.columns.values); cols=cols[1:]+[cols[0]]; dataset=dataset[cols]
-values = dataset.values #(14113,4)
-#values[:,:-1]=values[:,:-1]**3
+values = dataset.values[:,] #(14113,4)
+
+scaled = dataset.values[:,]*0
+
+scaled[:,0:7] = values[:,0:7]/np.max(values[:,0:7])
+scaled[:,8]   = (values[:,8] - values[:,8].min()) / (values[:,8].max(axis=0) - values[:,8].min(axis=0))
+scaled[:,9]   = (values[:,9] - values[:,9].min()) / (values[:,9].max(axis=0) - values[:,9].min(axis=0))
+scaled[:,10]   = (values[:,10] - values[:,10].min()) / (values[:,10].max(axis=0) - values[:,10].min(axis=0))
+scaled[:,11]   = (values[:,11] - values[:,11].min()) / (values[:,11].max(axis=0) - values[:,11].min(axis=0))
 
 # ensure all data is float
 values = values.astype('float32')
 # normalize features
-scaler = MinMaxScaler(feature_range=(0, 1))
-scaled = scaler.fit_transform(values)
+#scaler = MinMaxScaler(feature_range=(0, 1))
+#scaled = scaler.fit_transform(values)
+
+
 # frame as supervised learning
 n_steps_in = 2  #specify the number of the previous time steps to use for the prediction = 1 in this case
 n_steps_out = 1 #specify the number of time steps to predict = 1 in this case because we are predicting only 1 time step
-n_features = 8 #number of features (variables) used to predict
+n_features = 11 #number of features (variables) used to predict
+
 
 # frame as supervised learning
 reframed = series_to_supervised(scaled, n_steps_in, n_steps_out, n_features)
@@ -87,10 +98,10 @@ reframed.shape
 # %%
 # split into train and test sets
 nsamples=reframed.shape[0] #=14107
-values = reframed.values
+vals = reframed.values
 n_train_periods = int(nsamples*0.7) #70% for training
-train = values[:n_train_periods, :]
-test = values[n_train_periods:, :]
+train = vals[:n_train_periods, :]
+test = vals[n_train_periods:, :]
 # split into input and outputs (works only with n_steps_in=n_steps_out=1)
 n_obs = n_steps_in * n_features #(features=predictors) #1*3=3
 #
@@ -112,31 +123,39 @@ print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
 #%%
 # design network
 model = Sequential()
-model.add(LSTM(10, input_shape=(train_X.shape[1], train_X.shape[2]))) #=(n_steps_in,n_features)
+model.add(LSTM(20, input_shape=(train_X.shape[1], train_X.shape[2]))) #=(n_steps_in,n_features)
 #model.add(LSTM(2, input_shape=(train_X.shape[1], train_X.shape[2]))) #=(n_steps_in,n_features)
 model.add(Dense(1))
-model.compile(loss='mae', optimizer='adam') #mean absolute error "mse" "mae"
+model.compile(loss='mse', optimizer='adam') #mean absolute error "mse" "mae"
 # fit network
-history = model.fit(train_X, train_y, epochs=50, batch_size=72, validation_data=(test_X, test_y), verbose=2, shuffle=False)
+history = model.fit(train_X, train_y, epochs=20, batch_size=72, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 # plot history
 pyplot.plot(history.history['loss'], label='train')
 pyplot.plot(history.history['val_loss'], label='test')
 pyplot.legend()
 pyplot.show()
 
+
 # %% Make a prediction
+#test_X=train_X
+#test_y=train_y
+
+
 yhat = model.predict(test_X)
 test_X0 = test_X.reshape((test_X.shape[0], n_steps_in*n_features))
 # invert scaling for forecast
 #inv_yhat = concatenate((yhat, test_X[:, -7:]), axis=1)
 inv_yhat = concatenate((test_X0,yhat), axis=1)
-inv_yhat = scaler.inverse_transform(inv_yhat[:,-(n_features+1):])
+
+#inv_yhat = scaler.inverse_transform(inv_yhat[:,-(n_features+1):])
+inv_yhat = inv_yhat*(values[:,11].max(axis=0) - values[:,11].min(axis=0)) + values[:,11].min(axis=0)
 inv_yhat = inv_yhat[:,-1]
 # invert scaling for actual
 test_y0 = test_y.reshape((len(test_y), 1))
 #inv_y = concatenate((test_y, test_X[:, -4:]), axis=1)
 inv_y = concatenate((test_X0,test_y0), axis=1)
-inv_y = scaler.inverse_transform(inv_y[:,-(n_features+1):])
+inv_y = inv_y*(values[:,11].max(axis=0) - values[:,11].min(axis=0)) + values[:,11].min(axis=0)
+#inv_y = scaler.inverse_transform(inv_y[:,-(n_features+1):])
 inv_y = inv_y[:,-1]
 # calculate RMSE
 rmse = sqrt(mean_squared_error(inv_y, inv_yhat))
@@ -145,7 +164,7 @@ print('Test std: %.3f' % inv_y.std())
 
 
 pyplot.plot(inv_y, inv_yhat,'o')
-#pyplot.plot([590, 590],[900, 900],'r')
+pyplot.plot([590, 900],[590, 900],'r')
 pyplot.xlabel("data")
 pyplot.ylabel("prediction")
 pyplot.grid()
@@ -158,3 +177,31 @@ pyplot.plot(inv_y,'r',label="data")
 pyplot.plot(inv_yhat,'b',label="prediction")
 pyplot.legend()
 pyplot.show()
+
+pyplot.plot(inv_y-inv_yhat,'r',label="difference")
+pyplot.legend()
+pyplot.show()
+
+
+# %%
+
+from oceans.filters import lanc
+
+#freq = 1./40/6  # Hours
+freq = 1./2000
+window_size = 6*(96+1+96)
+pad = np.zeros(window_size) * np.NaN
+
+win = lanc(window_size, freq)
+res = np.convolve(win,inv_y-inv_yhat, mode='same')
+
+pyplot.plot(inv_y-inv_yhat,'b',label="difference")
+pyplot.plot(res,'r',label="difference")
+pyplot.plot(40*np.sin(2*np.pi*np.arange(0,inv_y.size)/706-350),'g')
+pyplot.legend()
+pyplot.show()
+
+
+#pyplot.plot(res,'r',label="difference")
+#pyplot.legend()
+#pyplot.show()
