@@ -75,7 +75,7 @@ scaled = scaler.fit_transform(values)
 # frame as supervised learning
 n_steps_in = 3  #specify the number of the previous time steps to use for the prediction = 1 in this case
 n_steps_out = 1 #specify the number of time steps to predict = 1 in this case because we are predicting only 1 time step
-n_features = 4 #number of features (variables) used to predict
+n_features = 6 #number of features (variables) used to predict
 
 # frame as supervised learning
 reframed = series_to_supervised(scaled, n_steps_in, n_steps_out, n_features)
