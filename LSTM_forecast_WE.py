@@ -30,7 +30,7 @@ from sklearn.metrics import mean_squared_error
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
-
+import smogn
 
 
 # %% convert series to supervised learning
@@ -67,7 +67,7 @@ dataset = read_csv('./data/tidal_averages_ES.csv', header=0, index_col=0)
 cols = list(dataset.columns.values); cols=cols[1:]+[cols[0]]; dataset=dataset[cols]
 values = dataset.values[:,] #(14113,4)
 
-scaled = dataset.values[:,]*0
+scaled = dataset.values[:,]
 
 scaled[:,0:7] = values[:,0:7]/np.max(values[:,0:7])
 scaled[:,8]   = (values[:,8] - values[:,8].min()) / (values[:,8].max(axis=0) - values[:,8].min(axis=0))
@@ -90,6 +90,8 @@ n_features = 11 #number of features (variables) used to predict
 
 # frame as supervised learning
 reframed = series_to_supervised(scaled, n_steps_in, n_steps_out, n_features)
+
+
 # drop columns we don't want to predict
 #reframed.drop(reframed.columns[[9,10,11,12,13,14,15]], axis=1, inplace=True)
 print(reframed.head()) #(nsamples, 4*(n_steps_in+n_steps_out))
@@ -99,7 +101,15 @@ reframed.shape
 # split into train and test sets
 nsamples=reframed.shape[0] #=14107
 vals = reframed.values
-n_train_periods = int(nsamples*0.7) #70% for training
+n_train_periods = int(nsamples*0.5) #70% for training
+
+reframed_train = reframed.loc[:n_train_periods,:]
+reframed_smogn = smogn.smoter(
+	   data = reframed_train,  ## pandas dataframe
+	   y = 'var12(t)'  ## string ('header name')
+)
+
+#%%
 train = vals[:n_train_periods, :]
 test = vals[n_train_periods:, :]
 # split into input and outputs (works only with n_steps_in=n_steps_out=1)
