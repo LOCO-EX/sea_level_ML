@@ -110,7 +110,7 @@ reframed_smogn = smogn.smoter(
 )
 
 #%%
-train = vals[:n_train_periods, :]
+train = reframed_smogn.values
 test = vals[n_train_periods:, :]
 # split into input and outputs (works only with n_steps_in=n_steps_out=1)
 n_obs = n_steps_in * n_features #(features=predictors) #1*3=3
