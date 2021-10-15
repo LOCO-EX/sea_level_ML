@@ -65,9 +65,9 @@ dataset = read_csv('./data/tidal_averages_ES.csv', header=0, index_col=0)
 #dataset = read_csv('../data_post_proc/tidal_averages.csv', header=0, index_col=0) #sea level, wind speed, sin(ang), cos(ang)
 #order dataset to put target(sea level) in the last column
 cols = list(dataset.columns.values); cols=cols[1:]+[cols[0]]; dataset=dataset[cols]
-values = dataset.values[:,] #(14113,4)
+values = dataset.values[:,][:] #(14113,4)
 
-scaled = dataset.values[:,]
+scaled = dataset.values[:,][:]*1.
 
 scaled[:,0:7] = values[:,0:7]/np.max(values[:,0:7])
 scaled[:,8]   = (values[:,8] - values[:,8].min()) / (values[:,8].max(axis=0) - values[:,8].min(axis=0))
@@ -77,6 +77,7 @@ scaled[:,11]   = (values[:,11] - values[:,11].min()) / (values[:,11].max(axis=0)
 
 # ensure all data is float
 values = values.astype('float32')
+scaled = scaled.astype('float32')
 # normalize features
 #scaler = MinMaxScaler(feature_range=(0, 1))
 #scaled = scaler.fit_transform(values)
