@@ -104,14 +104,14 @@ nsamples=reframed.shape[0] #=14107
 vals = reframed.values
 n_train_periods = int(nsamples*0.5) #70% for training
 
-reframed_train = reframed.loc[:n_train_periods,:]
-reframed_smogn = smogn.smoter(
-	   data = reframed_train,  ## pandas dataframe
-	   y = 'var12(t)'  ## string ('header name')
-)
+# reframed_train = reframed.loc[:n_train_periods,:]
+# reframed_smogn = smogn.smoter(
+# 	   data = reframed_train,  ## pandas dataframe
+# 	   y = 'var12(t)'  ## string ('header name')
+# )
 
 #%%
-train = reframed_smogn.values
+train = vals[:n_train_periods,:]
 test = vals[n_train_periods:, :]
 # split into input and outputs (works only with n_steps_in=n_steps_out=1)
 n_obs = n_steps_in * n_features #(features=predictors) #1*3=3
