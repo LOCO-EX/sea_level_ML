@@ -64,6 +64,9 @@ level_data = read_csv('./data/running_daily_level.csv', header=0, index_col=0)
 # Load wind and pressure data
 W = pd.read_csv('data/raw_data/Wind_data.csv')
 
+# Load astronomic data
+A = pd.read_csv('data/astronomic.csv')
+
 #%% Wind direction as sine and cosine
 
 gdr = np.pi/180 # useful to transform from degrees to radians
@@ -75,11 +78,22 @@ a_y = np.cos(gdr*a)
 a_x[a == 990] = 0;
 a_y[a == 990] = 0;
 
+
+#%% Moon and sun azimuth into sine and cosine
+
+ma_cos = np.cos(A['azimuth_moon_deg']*gdr)
+ma_sin = np.sin(A['azimuth_moon_deg']*gdr)
+sa_cos = np.cos(A['azimuth_sun_deg']*gdr)
+sa_sin = np.sin(A['azimuth_sun_deg']*gdr)
+
+#d = {'altitude_moon_deg': altitude_moon_deg, 'azimuth_moon_deg': azimuth_moon_deg, 'distance_moon_au':distance_moon_au,'altitude_sun_deg': altitude_sun_deg, 'azimuth_sun_deg': azimuth_sun_deg, 'distance_sun_au':distance_sun_au}
+
+
 # %% Arrange data
-tmp = np.stack((W['WindSpeed_m_s_'][0:-1], a_x[0:-1], a_y[0:-1], W['Pressure_mbar_'][0:-1], level_data['level_da']))
+tmp = np.stack((W['WindSpeed_m_s_'][0:-1], a_x[0:-1], a_y[0:-1], W['Pressure_mbar_'][0:-1], A['altitude_moon_deg'][0:-1], A['distance_moon_au'][0:-1], ma_cos[0:-1], ma_sin[0:-1], A['altitude_sun_deg'][0:-1], A['distance_sun_au'][0:-1], sa_cos[0:-1], sa_sin[0:-1], level_data['level_da']))
 
 
-d = {'wind_speed': tmp[0,:], 'sine_wind_angle': tmp[2,:], 'cosine_wind_angle': tmp[1,:], 'Pressure': tmp[3,:], 'level': tmp[4,:]}
+d = {'wind_speed': tmp[0,:], 'sine_wind_angle': tmp[2,:], 'cosine_wind_angle': tmp[1,:], 'Pressure': tmp[3,:], 'altitude_moon_deg': tmp[4,:], 'distance_moon_au': tmp[5,:], 'azimuth_moon_cos': tmp[6,:], 'azimuth_moon_sin': tmp[7,:], 'altitude_sun_deg': tmp[8,:], 'distance_sun_au': tmp[9,:], 'azimuth_sun_cos': tmp[10,:], 'azimuth_sun_sin': tmp[11,:], 'level': tmp[12,:]}
 dataset = pd.DataFrame(data=d)
 values = dataset.values
 
@@ -92,7 +106,7 @@ scaled = scaler.fit_transform(values)
 # frame as supervised learning
 n_steps_in = 30  #specify the number of the previous time steps to use for the prediction = 1 in this case
 n_steps_out = 1 #specify the number of time steps to predict = 1 in this case because we are predicting only 1 time step
-n_features = 4 #number of features (variables) used to predict
+n_features = 12 #number of features (variables) used to predict
 
 # frame as supervised learning
 reframed = series_to_supervised(scaled, n_steps_in, n_steps_out, n_features)
