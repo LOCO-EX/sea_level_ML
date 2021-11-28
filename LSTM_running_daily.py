@@ -104,9 +104,12 @@ values = values.astype('float32')
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaled = scaler.fit_transform(values)
 # frame as supervised learning
-n_steps_in = 30  #specify the number of the previous time steps to use for the prediction = 1 in this case
+n_steps_in = 36  #specify the number of the previous time steps to use for the prediction = 1 in this case
 n_steps_out = 1 #specify the number of time steps to predict = 1 in this case because we are predicting only 1 time step
-n_features = 12 #number of features (variables) used to predict
+n_features = 4 #number of features (variables) used to predict
+
+scaled = np.append(scaled[:,0:n_features],scaled[:,-1:],axis=1)
+
 
 # frame as supervised learning
 reframed = series_to_supervised(scaled, n_steps_in, n_steps_out, n_features)
@@ -119,7 +122,7 @@ reframed.shape
 # split into train and test sets
 nsamples=reframed.shape[0] #=14107
 values = reframed.values
-n_train_periods = int(nsamples*0.1) #70% for training
+n_train_periods = int(nsamples*0.5) #70% for training
 train = values[:n_train_periods, :]
 test = values[n_train_periods:, :]
 # split into input and outputs (works only with n_steps_in=n_steps_out=1)
@@ -142,12 +145,12 @@ print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
 #%%
 # design network
 model = Sequential()
-model.add(LSTM(2, input_shape=(train_X.shape[1], train_X.shape[2]))) #=(n_steps_in,n_features)
-#model.add(LSTM(2, input_shape=(train_X.shape[1], train_X.shape[2]))) #=(n_steps_in,n_features)
+model.add(LSTM(4,return_sequences=True, input_shape=(train_X.shape[1], train_X.shape[2]))) #=(n_steps_in,n_features)
+model.add(LSTM(4, input_shape=(train_X.shape[1], train_X.shape[2]))) #=(n_steps_in,n_features)
 model.add(Dense(1))
-model.compile(loss='mae', optimizer='adam') #mean absolute error "mse" "mae"
+model.compile(loss='mse', optimizer='adam') #mean absolute error "mse" "mae"
 # fit network
-history = model.fit(train_X, train_y, epochs=10, batch_size=72, validation_data=(test_X, test_y), verbose=2, shuffle=False)
+history = model.fit(train_X, train_y, epochs=30, batch_size=72, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 # plot history
 pyplot.plot(history.history['loss'], label='train')
 pyplot.plot(history.history['val_loss'], label='test')
